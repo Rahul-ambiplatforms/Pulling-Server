@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        button {
+            padding: 5px 10px;
+            margin: 0;
+            border: none;
+            border-radius: 3px;
+            background-color: #4fa3fd;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stream Control</h1>
+    <table id="proxyTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>P2P Status</th>
+                <th>Plan</th>
+                <th>Quality</th>
+                <th>Cloud Status</th>
+                <th>Remote Port</th>
+                <th>Action</th> <!-- New column for the button -->
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be injected here -->
+        </tbody>
+    </table>
+
+    <!-- Include Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+        // Fetch data from the Node.js server
+        fetch('/api/proxy')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector('#proxyTable tbody');
+                tableBody.innerHTML = ''; // Clear any existing data
+
+                // Iterate over the proxies array and add rows to the table
+                data.proxies.forEach(proxy => {
+                    const row = document.createElement('tr');
+                    const nameCell = document.createElement('td');
+                    const statusCell = document.createElement('td');
+                    const planCell = document.createElement('td');
+                    const qualityCell = document.createElement('td');
+                    const cloudCell = document.createElement('td');
+                    const remotePortCell = document.createElement('td');
+                    const actionCell = document.createElement('td');
+
+                    // Set cell content
+
+                    nameCell.textContent = proxy.name;
+                    statusCell.textContent = proxy.status;
+                    planCell.textContent = proxy.Plan; // Hardcoded for now
+                    qualityCell.textContent = proxy.Quality; // Hardcoded for now
+                    cloudCell.textContent = proxy.CloudStatus;
+                    remotePortCell.textContent = proxy.conf && proxy.conf.remotePort ? proxy.conf.remotePort : 0;
+                    // Create and set up the button
+
+                    const button = document.createElement('button');
+                    if ( proxy.CloudStatus === "Activated"){
+                        button.textContent = 'Stop Recording';
+                    }
+                    else{
+                        button.textContent = 'Start Recording';
+                    }
+
+                    button.addEventListener('click', () => {
+                        axios.get(`/start-stream?deviceid=${encodeURIComponent(proxy.name)}&remoteport=${proxy.conf.remotePort}`)
+                            .then(response => {
+                                if (response.data.success) {
+                                    alert(response.data.message);
+                                } else {
+                                    alert(response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error starting stream:', error);
+                                alert('Error starting stream');
+                            });
+                    });
+
+                    // Append cells and button to the row
+                    actionCell.appendChild(button);
+                    row.appendChild(nameCell);
+                    row.appendChild(statusCell);
+                    row.appendChild(planCell);
+                    row.appendChild(qualityCell);
+                    row.appendChild(cloudCell);
+                    row.appendChild(remotePortCell);
+                    row.appendChild(actionCell);
+
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+    </script>
+</body>
+</html>

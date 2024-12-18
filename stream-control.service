@@ -1,0 +1,15 @@
+[Unit]
+Description=Stream Control Node.js Application
+After=network.target
+
+[Service]
+ExecStart=/root/.nvm/versions/node/v20.9.0/bin/node /workspace/pulling_server/server.js
+WorkingDirectory=/workspace/pulling_server/
+Restart=always
+User=root
+Environment=NODE_ENV=production
+StandardOutput=append:/workspace/pulling_server/stream-control.log
+StandardError=append:/workspace/pulling_server/stream-control.log
+
+[Install]
+WantedBy=multi-user.target

@@ -2,7 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const path = require('path');
 const https = require('https');
-
+require('dotenv').config();
 const app = express();
 const port = 1010;
 
@@ -16,23 +16,23 @@ const httpsAgent = new https.Agent({
 
 async function fetchAndProcessData() {
     try {
-        const rtspResponse = await axios.get('https://media2.arcisai.io:8443/rtsp/api/list',{httpsAgent});
+        const rtspResponse = await axios.get(process.env.RTSP_API_URL,{httpsAgent});
         const rtspData = rtspResponse.data || [];
         const rtspStreamNames = rtspData
             .map(item => item.dvr_plan)
             .filter(name => name);
 
-        const proxyResponse = await axios.get('https://p2p.ambicam.com:7201/api/proxy/tcp', {
+        const proxyResponse = await axios.get(process.env.PROXY_API_URL, {
             httpsAgent,
             headers: {
-                'Authorization': `Basic ${Buffer.from('admin:admin').toString('base64')}`
+                'Authorization': `Basic ${Buffer.from(`${process.env.AUTH_USERNAME}:${process.env.AUTH_PASSWORD}`).toString('base64')}`
             }
         });
 
         const proxyData = proxyResponse.data || { proxies: [] };
         const proxies = proxyData.proxies || [];
 
-        const deviceResponse = await axios.get('https://delta.arcisai.io/backend/api/stream/getAllStreams');
+        const deviceResponse = await axios.get(process.env.DEVICE_API_URL);
         const devices = deviceResponse.data || [];
 
         const updatedProxies = proxies.map(async proxy => {
@@ -48,15 +48,15 @@ async function fetchAndProcessData() {
                 mediaserver: device ? device.mediaUrl : "No Information",
             };
             // If status is 'online' and CloudStatus is 'Deactivated', call the API continuously
-            if (proxy.status === 'online' && updatedProxy.mediaserver === 'media.arcisai.io:8443' && updatedProxy.CloudStatus === 'Deactivated' &&  updatedProxy.Plan !== 'No Information') {
+            if (proxy.status === 'online' && updatedProxy.mediaserver === process.env.CHECK_MEDIA_DOMAIN && updatedProxy.CloudStatus === 'Deactivated' &&  updatedProxy.Plan !== 'No Information') {
 
-                const baseTarget = `rtsp://admin:@RTSP-${device.deviceId}.torqueverse.dev:${updatedProxy.RemotePort}/`;
+                const baseTarget = `rtsp://${process.env.CAMERA_AUTH_USERNAME}:${process.env.CAMERA_AUTH_PASSWORD}:@RTSP-${device.deviceId}.${process.env.CAMERA_DOMAIN}:${updatedProxy.RemotePort}/`;
                 const streamSuffix = updatedProxy.Quality === 'low' ? 'ch0_1.264' : 'ch0_0.264';
                 const encodedTarget = encodeURIComponent(baseTarget + streamSuffix);
                 // const encodedTarget = encodeURIComponent(`rtsp://admin:@RTSP-${device.deviceid}.torqueverse.dev:${updatedProxy.RemotePort}/ch0_0.264`);
                 console.log('Calling API for', device.deviceId);
 
-                const url = `http://media.arcisai.io:8080/rtsp/api/pull?target=${encodedTarget}&streamPath=${device.plan}/RTSP-${device.deviceId}&save=1`;
+                const url = `${process.env.MEDIA_SERVER_URL}?target=${encodedTarget}&streamPath=DVR/RTSP-${device.deviceId}&save=1`;
                 console.log(url);
 
                 // Continuously call the API
@@ -90,23 +90,23 @@ fetchAndProcessData();
 
 app.get('/api/proxy', async (req, res) => {
     try {
-        const rtspResponse = await axios.get('https://media.arcisai.io:8443/rtsp/api/list',{httpsAgent});
+        const rtspResponse = await axios.get(process.env.RTSP_API_URL,{httpsAgent});
         const rtspData = rtspResponse.data || [];
         const rtspStreamNames = rtspData
             .map(item => item.dvr_plan)
             .filter(name => name);
 
-        const proxyResponse = await axios.get('https://p2p.ambicam.com:7201/api/proxy/tcp', {
+        const proxyResponse = await axios.get(process.env.PROXY_API_URL, {
             httpsAgent,
             headers: {
-                'Authorization': `Basic ${Buffer.from('admin:admin').toString('base64')}`
+                'Authorization': `Basic ${Buffer.from(`${process.env.AUTH_USERNAME}:${process.env.AUTH_PASSWORD}`).toString('base64')}`
             }
         });
 
         const proxyData = proxyResponse.data || { proxies: [] };
         const proxies = proxyData.proxies || [];
 
-        const deviceResponse = await axios.get('https://delta.arcisai.io/backend/api/stream/getAllStreams');
+        const deviceResponse = await axios.get(process.env.DEVICE_API_URL);
         const devices = deviceResponse.data || [];
 
         const updatedProxies = proxies.map(proxy => {
@@ -135,7 +135,7 @@ app.get('/start-stream', async (req, res) => {
     const port = req.query.remoteport;
     try {
         // Fetch device details from the external API
-        const deviceResponse = await axios.get('https://delta.arcisai.io/backend/api/stream/getAllStreams');
+        const deviceResponse = await axios.get(process.env.DEVICE_API_URL);
         const devices = deviceResponse.data; // Assuming the API returns an array of devices
 
 
@@ -145,9 +145,9 @@ app.get('/start-stream', async (req, res) => {
 
         if (device) {
 
-            const encodedTarget = encodeURIComponent(`rtsp://admin:@RTSP-${device.deviceId}.torqueverse.dev:${port}/ch0_0.264`);
+            const encodedTarget = encodeURIComponent(`rtsp://${process.env.CAMERA_AUTH_USERNAME}:${process.env.CAMERA_AUTH_PASSWORD}:@RTSP-${device.deviceId}.${process.env.CAMERA_DOMAIN}:${port}/ch0_0.264`);
             // console.log(encodedTarget)
-            const url = `http://media.arcisai.io:8080/rtsp/api/pull?target=${encodedTarget}&streamPath=${device.plan}/RTSP-${device.deviceId}&save=1`;
+            const url = `${process.env.MEDIA_SERVER_URL}?target=${encodedTarget}&streamPath=DVR/RTSP-${device.deviceId}&save=1`;
             try {
                 const response = await axios.get(url);
                 res.json({ success: true, message: `Successfully pulled stream for ${device.plan}/RTSP-${device.deviceId}` });
@@ -165,4 +165,3 @@ app.get('/start-stream', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
-
